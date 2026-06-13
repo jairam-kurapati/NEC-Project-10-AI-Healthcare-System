@@ -2,6 +2,8 @@
 
 AuraCare is a modern, high-fidelity, and fully responsive hospital management dashboard featuring real-time diagnostic outcomes, clinical resource forecasting, medical report analysis, and emergency control centers.
 
+This application is now backed by a **Python Flask API Server**, an **SQLite Database** for full data persistence, and **scikit-learn Machine Learning Models** for disease diagnostics.
+
 ---
 
 ## 🚀 Key Modules & Features
@@ -10,7 +12,7 @@ AuraCare is a modern, high-fidelity, and fully responsive hospital management da
 2. **Patient Management & EHR**: Interactive Patient Dossiers containing clinical history, current vitals telemetry, allergies, and insurance data.
 3. **Practitioner Directory**: Centralized directory tracking doctor departments, focus specializations, and daily available slots.
 4. **Appointment Scheduler**: Online booking portal with a Doctor Approval workflow and role-based views.
-5. **AI Disease & Outcome Predictor**: Simulate disease risk probabilities, recovery rates, ICU requirements, and stay durations using simulated ML models (XGBoost, Random Forest, Decision Tree).
+5. **AI Disease & Outcome Predictor**: Runs real machine learning inference to compute disease risk probabilities, recovery rates, ICU requirements, and stay durations using 4 selectable algorithms.
 6. **Bed & Resource Logistics**: Real-time bed allocation and auxiliary equipment link-tracking (ventilators, oxygen units) across ICU, General, Emergency, and Pediatric wards.
 7. **Staff Scheduling**: Shift load planner suggesting roster changes based on predicted weekend peak inflows.
 8. **Lab Report Document Parser (OCR)**: Scans and parses blood panels, ECG strips, or brain MRI documents, automatically extracting metadata and highlighting abnormal vitals.
@@ -28,32 +30,41 @@ AuraCare is a modern, high-fidelity, and fully responsive hospital management da
 *   **JavaScript (ES6+)**: Handles user interactive UI routing, state updates, form submissions, and rule engines.
 
 ### Backend & Database Architecture
-*   **Client-Side Simulation (Serverless)**: AuraCare is structured as a client-side Single Page Application (SPA). To make the app highly portable, fast, and easy to deploy:
-    *   **No Remote Backend Server**: Instead of a traditional Node.js/Express or Python server, all business logic and model inferences are handled directly in the browser's JavaScript context.
-    *   **In-Memory State**: Managed locally in a centralized state store within [src/main.js](file:///c:/Users/jayar/OneDrive/Desktop/Health%20care%20management%20system/src/main.js).
-    *   **Local Persistence**: All modifications (new patients, modified shifts, booking statuses) persist locally in the user's browser using HTML5 **LocalStorage** (`localStorage.setItem`).
-    *   **Initial Seed Data**: Bootstrapped from a static mock database schema in [src/mockData.js](file:///c:/Users/jayar/OneDrive/Desktop/Health%20care%20management%20system/src/mockData.js).
+*   **Flask Web Server (Python)**: Exposes RESTful API endpoints at `http://127.0.0.1:5000` for authentication, patient records, bed allocation, and ML inference.
+*   **SQLite Database (`backend/healthcare.db`)**: Manages relational tables for users, patients, doctors, beds, equipment, shifts, appointments, and emergency logs.
+*   **ML Classifiers (scikit-learn)**: Multi-class classifiers trained on synthetic clinical datasets to predict diseases (Type 2 Diabetes, Coronary Heart Disease, Chronic Kidney Disease) and forecast ICU stay lengths.
+*   **Resilient Fallback**: The frontend is built with an automatic fallback mechanism. If the Python API server is not running, the application gracefully falls back to browser `LocalStorage` (offline demo mode).
 
 ---
 
 ## 📦 Getting Started
 
-### Prerequisites
-Make sure you have [Node.js](https://nodejs.org/) installed.
+### 1. Prerequisites
+Make sure you have [Node.js](https://nodejs.org/) and [Python (3.10+)](https://www.python.org/) installed.
 
-### Installation
-1. Clone or download the repository.
-2. Open terminal in the directory and install dependencies:
-   ```bash
-   npm install
-   ```
+### 2. Install Dependencies
+Install the required frontend and backend packages:
+```bash
+# Frontend
+npm install
 
-### Running Locally
-To launch the Vite development server:
+# Backend
+pip install -r backend/requirements.txt
+```
+
+### 3. Run the Backend (Flask API)
+Launch the Python server. This will automatically train the ML models (if missing) and initialize the SQLite database:
+```bash
+python backend/app.py
+```
+*The API server will start on `http://127.0.0.1:5000`.*
+
+### 4. Run the Frontend (Vite)
+Launch the Vite development server:
 ```bash
 npm run dev
 ```
-Open the generated local URL (usually `http://localhost:5173`) in your browser.
+Open the generated local URL (usually `http://localhost:5173`) in your web browser.
 
 ---
 

@@ -22,22 +22,55 @@ const state = {
   charts: {} // Store Chart.js instances to destroy them before re-creating
 };
 
-// Initial Data Load from LocalStorage or mockData
-function initData() {
-  state.doctors = JSON.parse(localStorage.getItem('auc_doctors')) || initialDoctors;
-  state.patients = JSON.parse(localStorage.getItem('auc_patients')) || initialPatients;
-  state.beds = JSON.parse(localStorage.getItem('auc_beds')) || initialBeds;
-  state.equipment = JSON.parse(localStorage.getItem('auc_equipment')) || initialEquipment;
-  state.shifts = JSON.parse(localStorage.getItem('auc_shifts')) || initialStaffShifts;
-  state.appointments = JSON.parse(localStorage.getItem('auc_appointments')) || initialAppointments;
-  state.emergencyLogs = JSON.parse(localStorage.getItem('auc_emergency_logs')) || [
-    { timestamp: new Date().toLocaleTimeString(), text: "SYSTEM: AuraCare Core Initialization Complete." },
-    { timestamp: new Date().toLocaleTimeString(), text: "AI ENGINE: Heuristic Prediction Matrices Calibrated." }
-  ];
-  saveData();
+const API_BASE_URL = 'http://127.0.0.1:5000/api';
+let usingFallback = false;
+
+async function apiFetch(path, options = {}) {
+  const res = await fetch(`${API_BASE_URL}${path}`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    }
+  });
+  if (!res.ok) {
+    const errText = await res.text().catch(() => '');
+    throw new Error(`HTTP error ${res.status}: ${errText}`);
+  }
+  return await res.json();
 }
 
-function saveData() {
+// Initial Data Load from LocalStorage or mockData
+async function initData() {
+  try {
+    const data = await apiFetch('/state');
+    state.doctors = data.doctors;
+    state.patients = data.patients;
+    state.beds = data.beds;
+    state.equipment = data.equipment;
+    state.shifts = data.shifts;
+    state.appointments = data.appointments;
+    state.emergencyLogs = data.emergencyLogs;
+    usingFallback = false;
+    console.log("AuraCare backend connected. State loaded from SQLite.");
+  } catch (err) {
+    usingFallback = true;
+    console.warn("Could not connect to AuraCare backend. Falling back to LocalStorage.", err);
+    state.doctors = JSON.parse(localStorage.getItem('auc_doctors')) || initialDoctors;
+    state.patients = JSON.parse(localStorage.getItem('auc_patients')) || initialPatients;
+    state.beds = JSON.parse(localStorage.getItem('auc_beds')) || initialBeds;
+    state.equipment = JSON.parse(localStorage.getItem('auc_equipment')) || initialEquipment;
+    state.shifts = JSON.parse(localStorage.getItem('auc_shifts')) || initialStaffShifts;
+    state.appointments = JSON.parse(localStorage.getItem('auc_appointments')) || initialAppointments;
+    state.emergencyLogs = JSON.parse(localStorage.getItem('auc_emergency_logs')) || [
+      { timestamp: new Date().toLocaleTimeString(), text: "SYSTEM: AuraCare Core Initialization Complete." },
+      { timestamp: new Date().toLocaleTimeString(), text: "AI ENGINE: Heuristic Prediction Matrices Calibrated." }
+    ];
+    saveDataLocalOnly();
+  }
+}
+
+function saveDataLocalOnly() {
   localStorage.setItem('auc_doctors', JSON.stringify(state.doctors));
   localStorage.setItem('auc_patients', JSON.stringify(state.patients));
   localStorage.setItem('auc_beds', JSON.stringify(state.beds));
@@ -48,8 +81,8 @@ function saveData() {
 }
 
 // App Initialization
-document.addEventListener('DOMContentLoaded', () => {
-  initData();
+document.addEventListener('DOMContentLoaded', async () => {
+  await initData();
   setupEventListeners();
   setupAuth();
   lucide.createIcons();
@@ -80,18 +113,33 @@ function setupAuth() {
   });
 
   // Handle Login Submission
-  loginForm.addEventListener('submit', (e) => {
+  loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const role = document.getElementById('login-role').value;
     const username = document.getElementById('login-username').value.trim();
     const pass = document.getElementById('login-password').value;
 
+    if (!usingFallback) {
+      try {
+        const res = await apiFetch('/login', {
+          method: 'POST',
+          body: JSON.stringify({ username, password: pass, role })
+        });
+        if (res.status === 'success') {
+          loginUser(res.user);
+          return;
+        }
+      } catch (err) {
+        console.error("API Auth failed, attempting local fallback check", err);
+      }
+    }
+
+    // Fallback authentication check
     if (username === 'admin' && pass === 'admin123') {
       loginUser({ name: 'Administrator', role: 'admin', username: 'admin' });
       return;
     }
 
-    // Check doctors
     if (role === 'doctor') {
       const doc = state.doctors.find(d => d.username === username && d.password === pass);
       if (doc) {
@@ -100,7 +148,6 @@ function setupAuth() {
       }
     }
 
-    // Check patients
     if (role === 'patient') {
       const pat = state.patients.find(p => p.username === username && p.password === pass);
       if (pat) {
@@ -109,7 +156,6 @@ function setupAuth() {
       }
     }
 
-    // Check staff
     if (role === 'staff') {
       if (username === 'staff1' && pass === 'staff123') {
         loginUser({ name: 'Duty Officer Bob', role: 'staff', username: 'staff1' });
@@ -121,13 +167,66 @@ function setupAuth() {
   });
 
   // Handle Registration
-  registerForm.addEventListener('submit', (e) => {
+  registerForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const name = document.getElementById('reg-name').value.trim();
     const role = document.getElementById('reg-role').value;
     const username = document.getElementById('reg-username').value.trim();
     const password = document.getElementById('reg-password').value;
 
+    if (!usingFallback) {
+      try {
+        if (role === 'patient') {
+          const res = await apiFetch('/patients', {
+            method: 'POST',
+            body: JSON.stringify({
+              name,
+              age: 30,
+              gender: "Male",
+              weight: 70,
+              height: 170,
+              bloodGroup: "O+",
+              medicalConditions: [],
+              familyHistory: [],
+              allergies: [],
+              previousTreatments: [],
+              insurance: "Standard Policy ID: GL-112",
+              username,
+              password,
+              vitals: { oxygen: 98, heartRate: 75, temp: 98.6, bpSystolic: 120, bpDiastolic: 80 }
+            })
+          });
+          if (res.status === 'success') {
+            await initData();
+            loginUser({ name, role: 'patient', username, id: res.patientId });
+            return;
+          }
+        } else if (role === 'doctor') {
+          const res = await apiFetch('/doctors', {
+            method: 'POST',
+            body: JSON.stringify({
+              name,
+              department: "General Care",
+              specialization: "General Practice",
+              experience: "5",
+              qualification: "MD Clinical Medicine",
+              username,
+              password,
+              photo: "https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&q=80&w=300"
+            })
+          });
+          if (res.status === 'success') {
+            await initData();
+            loginUser({ name, role: 'doctor', username, id: res.doctorId });
+            return;
+          }
+        }
+      } catch (err) {
+        console.error("API Register failed, using fallback check", err);
+      }
+    }
+
+    // Fallback Registration Check
     if (role === 'patient') {
       const exists = state.patients.some(p => p.username === username);
       if (exists) { return alert('Username already registered!'); }
@@ -152,7 +251,7 @@ function setupAuth() {
       };
 
       state.patients.push(newPatient);
-      saveData();
+      saveDataLocalOnly();
       loginUser({ name: newPatient.name, role: 'patient', username: newPatient.username, id: newPatient.id });
     } else if (role === 'doctor') {
       const exists = state.doctors.some(d => d.username === username);
@@ -172,7 +271,7 @@ function setupAuth() {
       };
 
       state.doctors.push(newDoc);
-      saveData();
+      saveDataLocalOnly();
       loginUser({ name: newDoc.name, role: 'doctor', username: newDoc.username, id: newDoc.id });
     } else {
       alert('Registration successful! Please login with your new credentials.');
@@ -752,7 +851,7 @@ function renderCharts() {
 }
 
 // EHR Form Submission
-function handleEHRRegister(e) {
+async function handleEHRRegister(e) {
   e.preventDefault();
   const name = document.getElementById('ehr-name').value.trim();
   const age = parseInt(document.getElementById('ehr-age').value);
@@ -764,6 +863,29 @@ function handleEHRRegister(e) {
   const allergies = document.getElementById('ehr-allergies').value.split(',').map(s => s.trim()).filter(Boolean);
   const family = document.getElementById('ehr-family-history').value.split(',').map(s => s.trim()).filter(Boolean);
   const insurance = document.getElementById('ehr-insurance').value.trim();
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/patients', {
+        method: 'POST',
+        body: JSON.stringify({
+          name, age, gender, bloodGroup: blood, weight, height,
+          medicalConditions: conditions, familyHistory: family, allergies,
+          insurance, vitals: { oxygen: 98, heartRate: 75, temp: 98.6, bpSystolic: 120, bpDiastolic: 80 }
+        })
+      });
+      if (res.status === 'success') {
+        await initData();
+        renderPatients();
+        updateDropdownOptions();
+        document.getElementById('patient-registration-form').reset();
+        alert(`Patient dossier ${res.patientId} registered successfully in SQLite!`);
+        return;
+      }
+    } catch (err) {
+      console.error("API patient registration failed, using fallback", err);
+    }
+  }
 
   const newPatient = {
     id: `PAT${String(state.patients.length + 1).padStart(3, '0')}`,
@@ -785,21 +907,42 @@ function handleEHRRegister(e) {
   };
 
   state.patients.push(newPatient);
-  saveData();
+  saveDataLocalOnly();
   renderPatients();
   updateDropdownOptions();
   document.getElementById('patient-registration-form').reset();
-  alert(`Patient dossier ${newPatient.id} registered successfully!`);
+  alert(`Patient dossier ${newPatient.id} registered successfully (Local fallback)!`);
 }
 
 // Doctor Form Submission
-function handleDoctorRegister(e) {
+async function handleDoctorRegister(e) {
   e.preventDefault();
   const name = document.getElementById('doc-name').value.trim();
   const dept = document.getElementById('doc-dept').value;
   const special = document.getElementById('doc-special').value.trim();
   const exp = parseInt(document.getElementById('doc-exp').value);
   const qual = document.getElementById('doc-qual').value.trim();
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/doctors', {
+        method: 'POST',
+        body: JSON.stringify({
+          name, department: dept, specialization: special, experience: exp, qualification: qual
+        })
+      });
+      if (res.status === 'success') {
+        await initData();
+        renderDoctors();
+        updateDropdownOptions();
+        document.getElementById('doctor-registration-form').reset();
+        alert(`Doctor profile ${res.doctorId} created successfully in SQLite!`);
+        return;
+      }
+    } catch (err) {
+      console.error("API doctor registration failed, using fallback", err);
+    }
+  }
 
   const newDoc = {
     id: `DOC${String(state.doctors.length + 1).padStart(3, '0')}`,
@@ -815,15 +958,15 @@ function handleDoctorRegister(e) {
   };
 
   state.doctors.push(newDoc);
-  saveData();
+  saveDataLocalOnly();
   renderDoctors();
   updateDropdownOptions();
   document.getElementById('doctor-registration-form').reset();
-  alert(`Doctor profile ${newDoc.id} created successfully!`);
+  alert(`Doctor profile ${newDoc.id} created successfully (Local fallback)!`);
 }
 
 // Appointment Slot Booking
-function handleAppointmentBook(e) {
+async function handleAppointmentBook(e) {
   e.preventDefault();
   const patId = document.getElementById('appt-patient').value;
   const docId = document.getElementById('appt-doctor').value;
@@ -833,6 +976,34 @@ function handleAppointmentBook(e) {
 
   const pat = state.patients.find(p => p.id === patId);
   const doc = state.doctors.find(d => d.id === docId);
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/appointments', {
+        method: 'POST',
+        body: JSON.stringify({
+          patientName: pat.name,
+          patientId: patId,
+          doctorId: docId,
+          doctorName: doc.name,
+          date,
+          slot,
+          reason,
+          status: state.currentRole === 'patient' ? 'Pending' : 'Approved'
+        })
+      });
+      if (res.status === 'success') {
+        await initData();
+        renderAppointments();
+        updateDashboardCounters();
+        document.getElementById('appointment-booking-form').reset();
+        alert(`Appointment request ${res.appointmentId} submitted directly to SQLite!`);
+        return;
+      }
+    } catch (err) {
+      console.error("API appointment booking failed, using fallback", err);
+    }
+  }
 
   const newAppt = {
     id: `APP${String(state.appointments.length + 1).padStart(3, '0')}`,
@@ -847,15 +1018,15 @@ function handleAppointmentBook(e) {
   };
 
   state.appointments.push(newAppt);
-  saveData();
+  saveDataLocalOnly();
   renderAppointments();
   updateDashboardCounters();
   document.getElementById('appointment-booking-form').reset();
-  alert(`Appointment request ${newAppt.id} submitted!`);
+  alert(`Appointment request ${newAppt.id} submitted (Local fallback)!`);
 }
 
 // AI Disease Risk calculations (Heuristic Inference engine)
-function handleDiseasePrediction(e) {
+async function handleDiseasePrediction(e) {
   e.preventDefault();
   const patId = document.getElementById('pred-patient').value;
   const algorithm = document.getElementById('pred-algorithm').value;
@@ -867,19 +1038,64 @@ function handleDiseasePrediction(e) {
   
   const selectedSymptoms = Array.from(document.getElementById('pred-symptoms').selectedOptions).map(opt => opt.value);
 
-  // Heuristic calculation
+  let predictedDisease = "Healthy / Low Risk";
+  let severity = "Mild Risk";
+  let badgeClass = "badge-success";
+  let finalRisk = 12;
+  let recoveryProb = "99.5";
+  let icuProb = "0.0";
+  let stayDuration = "1 Days";
+  let readmissionProb = "0.0";
+  let recs = [];
+  let modelDetails = `Computed via heuristic fallback in browser`;
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/predict', {
+        method: 'POST',
+        body: JSON.stringify({
+          patientId: patId,
+          algorithm,
+          age,
+          bp,
+          glucose: sugar,
+          cholesterol: chol,
+          bmi,
+          symptoms: selectedSymptoms
+        })
+      });
+      predictedDisease = res.predictedDisease;
+      severity = res.severity;
+      badgeClass = res.badgeClass;
+      finalRisk = res.finalRisk;
+      recoveryProb = res.recoveryProb;
+      icuProb = res.icuProb;
+      stayDuration = res.stayDuration;
+      readmissionProb = res.readmissionProb;
+      recs = res.recs;
+      modelDetails = res.modelDetails;
+    } catch (err) {
+      console.error("API disease prediction failed, using heuristic fallback", err);
+      return runLocalHeuristicPrediction(patId, algorithm, age, bp, sugar, chol, bmi, selectedSymptoms);
+    }
+  } else {
+    return runLocalHeuristicPrediction(patId, algorithm, age, bp, sugar, chol, bmi, selectedSymptoms);
+  }
+
+  renderPredictionUI(predictedDisease, severity, badgeClass, finalRisk, recoveryProb, icuProb, stayDuration, readmissionProb, recs, modelDetails);
+}
+
+function runLocalHeuristicPrediction(patId, algorithm, age, bp, sugar, chol, bmi, selectedSymptoms) {
   let diabetesWeight = 0;
   let heartWeight = 0;
   let kidneyWeight = 0;
 
-  // Base parameters impact
   if (age > 45) { diabetesWeight += 10; heartWeight += 15; kidneyWeight += 10; }
   if (bp > 135) { heartWeight += 25; kidneyWeight += 20; }
   if (sugar > 110) { diabetesWeight += 35; kidneyWeight += 15; }
   if (chol > 210) { heartWeight += 30; }
   if (bmi > 25) { diabetesWeight += 20; heartWeight += 15; }
 
-  // Symptom triggers
   selectedSymptoms.forEach(sym => {
     if (sym === 'chest_pain' || sym === 'shortness_breath') heartWeight += 40;
     if (sym === 'frequent_urination' || sym === 'excessive_thirst') diabetesWeight += 45;
@@ -887,7 +1103,6 @@ function handleDiseasePrediction(e) {
     if (sym === 'fatigue') { diabetesWeight += 10; heartWeight += 10; kidneyWeight += 10; }
   });
 
-  // Calculate highest risk disease
   let predictedDisease = "Healthy / Low Risk";
   let highestScore = 0;
 
@@ -895,10 +1110,9 @@ function handleDiseasePrediction(e) {
   if (heartWeight > highestScore) { highestScore = heartWeight; predictedDisease = "Coronary Heart Disease"; }
   if (kidneyWeight > highestScore) { highestScore = kidneyWeight; predictedDisease = "Chronic Kidney Disease (CKD)"; }
 
-  // Apply algorithm perturbations
   let modifier = 1.0;
-  if (algorithm === "XGBoost") modifier = 0.96; // High precision
-  if (algorithm === "Decision Tree") modifier = 1.05; // Less regularization
+  if (algorithm === "XGBoost") modifier = 0.96;
+  if (algorithm === "Decision Tree") modifier = 1.05;
   if (algorithm === "Logistic Regression") modifier = 0.88;
 
   let finalRisk = Math.min(Math.round(highestScore * modifier), 99);
@@ -907,7 +1121,6 @@ function handleDiseasePrediction(e) {
     finalRisk = 12;
   }
 
-  // Set Severity Level
   let severity = "Mild Risk";
   let badgeClass = "badge-success";
   if (finalRisk >= 35 && finalRisk < 70) {
@@ -918,13 +1131,11 @@ function handleDiseasePrediction(e) {
     badgeClass = "badge-danger";
   }
 
-  // Outcome parameters
   const recoveryProb = Math.max(99.5 - (finalRisk * 0.45), 42.0).toFixed(1);
   const icuProb = Math.min(finalRisk * 0.9, 90.0).toFixed(1);
   const stayDuration = Math.max(Math.round(finalRisk / 10), 1);
   const readmissionProb = Math.min(finalRisk * 0.25, 45.0).toFixed(1);
 
-  // Rec recommendations
   let recs = [];
   if (predictedDisease === "Type 2 Diabetes") {
     recs = [
@@ -955,10 +1166,12 @@ function handleDiseasePrediction(e) {
     ];
   }
 
-  // Save prediction stats to report history
+  renderPredictionUI(predictedDisease, severity, badgeClass, finalRisk, recoveryProb, icuProb, `${stayDuration} Days`, readmissionProb, recs, `Computed via ${algorithm} (Heuristic Local Fallback)`);
+}
+
+function renderPredictionUI(predictedDisease, severity, badgeClass, finalRisk, recoveryProb, icuProb, stayDuration, readmissionProb, recs, modelDetails) {
   saveReportPredictionStats(predictedDisease, finalRisk);
 
-  // Render Outcome Box
   document.getElementById('outcome-input-placeholder').style.display = 'none';
   const outcomeResults = document.getElementById('outcome-results');
   outcomeResults.classList.add('visible');
@@ -968,17 +1181,16 @@ function handleDiseasePrediction(e) {
   sevBadge.innerText = severity;
   sevBadge.className = `badge ${badgeClass}`;
   
-  document.getElementById('prediction-model-details').innerText = `Computed via ${algorithm} Classifier in 34ms`;
+  document.getElementById('prediction-model-details').innerText = modelDetails;
   document.getElementById('predicted-risk-score').innerText = `${finalRisk}%`;
   document.getElementById('predicted-risk-score').style.color = severity === "Critical Risk" ? "var(--color-accent-danger)" : severity === "Moderate Risk" ? "var(--color-accent-warning)" : "var(--color-accent-success)";
   document.getElementById('disease-risk-fill').style.width = `${finalRisk}%`;
 
   document.getElementById('outcome-recovery-prob').innerText = `${recoveryProb}%`;
   document.getElementById('outcome-icu-prob').innerText = `${icuProb}%`;
-  document.getElementById('outcome-stay-duration').innerText = `${stayDuration} Days`;
+  document.getElementById('outcome-stay-duration').innerText = stayDuration;
   document.getElementById('outcome-readmit-prob').innerText = `${readmissionProb}%`;
 
-  // Render Treatment recommendations
   const listRecs = document.getElementById('ai-treatment-recommendations');
   listRecs.innerHTML = recs.map(r => `<li>${r}</li>`).join('');
 }
@@ -990,10 +1202,8 @@ function saveReportPredictionStats(disease, risk) {
     const calculatedStay = Math.max(Math.round(risk / 10), 2);
     avgStayEl.innerText = `${((4.8 + calculatedStay) / 2).toFixed(1)} Days`;
   }
-}
-
 // Bed Assignment triggers
-function handleEmergencyBedAssign(e) {
+async function handleEmergencyBedAssign(e) {
   e.preventDefault();
   const patId = document.getElementById('reserve-patient').value;
   const ward = document.getElementById('reserve-ward').value;
@@ -1001,6 +1211,30 @@ function handleEmergencyBedAssign(e) {
   const oxy = document.getElementById('reserve-oxygen').checked;
 
   const patient = state.patients.find(p => p.id === patId);
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/beds/allocate', {
+        method: 'POST',
+        body: JSON.stringify({
+          patientName: patient.name,
+          ward,
+          ventilator: vent,
+          oxygen: oxy
+        })
+      });
+      if (res.status === 'success') {
+        await initData();
+        renderBeds('All');
+        updateDashboardCounters();
+        document.getElementById('emergency-bed-form').reset();
+        alert(`Patient ${patient.name} allocated to bed via SQLite backend!`);
+        return;
+      }
+    } catch (err) {
+      console.error("API bed allocation failed, using fallback", err);
+    }
+  }
 
   // Look for vacant bed in ward
   const bed = state.beds.find(b => b.ward === ward && b.status === 'Vacant');
@@ -1014,15 +1248,31 @@ function handleEmergencyBedAssign(e) {
   bed.ventilator = vent;
   bed.oxygen = oxy;
 
-  saveData();
+  saveDataLocalOnly();
   renderBeds('All');
   updateDashboardCounters();
   document.getElementById('emergency-bed-form').reset();
-  alert(`Patient ${patient.name} allocated to ${bed.label} in ${ward}!`);
+  alert(`Patient ${patient.name} allocated to ${bed.label} in ${ward} (Local fallback)!`);
 }
 
 // Shift scheduling suggestion optimizer
-function runShiftOptimization() {
+async function runShiftOptimization() {
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/shifts/optimize', { method: 'POST' });
+      if (res.status === 'success') {
+        await initData();
+        renderStaff();
+        updateDashboardCounters();
+        document.getElementById('ai-optimization-alert').style.display = 'block';
+        alert("AI Shift Scheduler Roster Updated in SQLite database!");
+        return;
+      }
+    } catch (err) {
+      console.error("API shift optimization failed, using fallback", err);
+    }
+  }
+
   document.getElementById('ai-optimization-alert').style.display = 'block';
 
   // Inject recommended staff shifts
@@ -1042,14 +1292,14 @@ function runShiftOptimization() {
   };
 
   state.shifts.push(newShift);
-  saveData();
+  saveDataLocalOnly();
   renderStaff();
   updateDashboardCounters();
-  alert("AI Shift Scheduler Roster Updated! Emergency on-call staff scheduled based on load projections.");
+  alert("AI Shift Scheduler Roster Updated (Local fallback)!");
 }
 
 // OCR mock template analyzer
-function simulateOCR(type, filename = "") {
+async function simulateOCR(type, filename = "") {
   document.getElementById('ocr-placeholder').style.display = 'none';
   const resultsDiv = document.getElementById('ocr-results');
   resultsDiv.style.display = 'block';
@@ -1058,6 +1308,27 @@ function simulateOCR(type, filename = "") {
   const badgeEl = document.getElementById('ocr-status-badge');
   const textEl = document.getElementById('ocr-text-extracted');
   const vitalsDiv = document.getElementById('ocr-flagged-vitals');
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/ocr', {
+        method: 'POST',
+        body: JSON.stringify({ type, filename })
+      });
+      docTypeEl.innerText = res.docType;
+      badgeEl.innerText = res.status;
+      badgeEl.className = `badge ${res.badgeClass}`;
+      textEl.value = res.extractedText;
+      vitalsDiv.innerHTML = res.flaggedVitals.map(v => `
+        <div style="background: rgba(244,63,94,0.1); border: 1px solid rgba(244,63,94,0.2); border-radius: 8px; padding: 10px; font-size:12.5px;">
+          <strong style="color:var(--color-accent-danger);">${v.label}:</strong> ${v.text}
+        </div>
+      `).join('');
+      return;
+    } catch (err) {
+      console.error("API OCR failed, using fallback", err);
+    }
+  }
 
   if (type === 'blood') {
     docTypeEl.innerText = "Complete Blood Count Panel";
@@ -1110,7 +1381,7 @@ function simulateOCR(type, filename = "") {
 }
 
 // Emergency Alert triggers and Broadcast System
-function handleEmergencyBroadcast(e) {
+async function handleEmergencyBroadcast(e) {
   e.preventDefault();
   const patId = document.getElementById('emg-patient').value;
   const criteria = document.getElementById('emg-criteria').value;
@@ -1124,6 +1395,27 @@ function handleEmergencyBroadcast(e) {
   const bannerMsg = document.getElementById('emergency-banner-msg');
   banner.classList.add('active');
   bannerMsg.innerText = `CRITICAL ALERT: ${patient.name} - ${metrics}`;
+
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch('/emergency/broadcast', {
+        method: 'POST',
+        body: JSON.stringify({
+          patientName: patient.name,
+          patientId: patId,
+          metrics
+        })
+      });
+      if (res.status === 'success') {
+        await initData();
+        renderEmergencyLogs();
+        alert(`Emergency code broadcasted for ${patient.name} in SQLite!`);
+        return;
+      }
+    } catch (err) {
+      console.error("API emergency broadcast failed, using fallback", err);
+    }
+  }
 
   // Log SMS/Notifiers
   const logsContainer = document.getElementById('emg-logs-container');
@@ -1146,8 +1438,8 @@ function handleEmergencyBroadcast(e) {
     state.emergencyLogs.push({ timestamp: time, text: logText });
   });
 
-  saveData();
-  alert(`Emergency code broadcasted for ${patient.name}! Review notification channels logs on the right.`);
+  saveDataLocalOnly();
+  alert(`Emergency code broadcasted for ${patient.name} (Local fallback)!`);
 }
 
 function renderEmergencyLogs() {
@@ -1172,24 +1464,55 @@ window.viewEhrDetails = function(patId) {
   }
 };
 
-window.updateApptStatus = function(apptId, status) {
+window.updateApptStatus = async function(apptId, status) {
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch(`/appointments/${apptId}/status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status })
+      });
+      if (res.status === 'success') {
+        await initData();
+        renderAppointments();
+        updateDashboardCounters();
+        return;
+      }
+    } catch (err) {
+      console.error("API update appt status failed, using fallback", err);
+    }
+  }
+
   const appt = state.appointments.find(a => a.id === apptId);
   if (appt) {
     appt.status = status;
-    saveData();
+    saveDataLocalOnly();
     renderAppointments();
     updateDashboardCounters();
   }
 };
 
-window.releaseBed = function(bedId) {
+window.releaseBed = async function(bedId) {
   const bed = state.beds.find(b => b.id === bedId);
   if (bed) {
     const confirmRelease = confirm(`Are you sure you want to release patient ${bed.patient} from bed ${bed.label}?`);
     if (confirmRelease) {
+      if (!usingFallback) {
+        try {
+          const res = await apiFetch(`/beds/release/${bedId}`, { method: 'POST' });
+          if (res.status === 'success') {
+            await initData();
+            renderBeds('All');
+            updateDashboardCounters();
+            return;
+          }
+        } catch (err) {
+          console.error("API release bed failed, using fallback", err);
+        }
+      }
+
       bed.status = 'Vacant';
       bed.patient = null;
-      saveData();
+      saveDataLocalOnly();
       renderBeds('All');
       updateDashboardCounters();
     }
@@ -1210,19 +1533,47 @@ window.quickAllocateBedDialog = function(bedId) {
   }
 };
 
-window.toggleShiftStatus = function(shiftId) {
+window.toggleShiftStatus = async function(shiftId) {
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch(`/shifts/${shiftId}/toggle`, { method: 'PUT' });
+      if (res.status === 'success') {
+        await initData();
+        renderStaff();
+        updateDashboardCounters();
+        return;
+      }
+    } catch (err) {
+      console.error("API toggle shift failed, using fallback", err);
+    }
+  }
+
   const s = state.shifts.find(sf => sf.id === shiftId);
   if (s) {
     s.status = s.status === 'On Duty' ? 'Scheduled' : 'On Duty';
-    saveData();
+    saveDataLocalOnly();
     renderStaff();
     updateDashboardCounters();
   }
 };
 
-window.deleteShift = function(shiftId) {
+window.deleteShift = async function(shiftId) {
+  if (!usingFallback) {
+    try {
+      const res = await apiFetch(`/shifts/${shiftId}`, { method: 'DELETE' });
+      if (res.status === 'success') {
+        await initData();
+        renderStaff();
+        updateDashboardCounters();
+        return;
+      }
+    } catch (err) {
+      console.error("API delete shift failed, using fallback", err);
+    }
+  }
+
   state.shifts = state.shifts.filter(s => s.id !== shiftId);
-  saveData();
+  saveDataLocalOnly();
   renderStaff();
   updateDashboardCounters();
 };

@@ -26,3 +26,9 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Python backend database, models, and cache
+backend/healthcare.db
+backend/models/*.joblib
+backend/__pycache__/
+
