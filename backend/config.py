@@ -1,10 +1,27 @@
 import os
 
 class Config:
-    # SQLite Database Path (can be overridden by Render Persistent Disk path)
-    DB_PATH = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'healthcare.db'))
-    
-    # Flask Server Settings
-    DEBUG = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
-    PORT = int(os.environ.get('PORT', 5000))
-    HOST = os.environ.get('HOST', '127.0.0.1')
+
+    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+    SQLALCHEMY_DATABASE_URI = os.environ.get(
+        "DATABASE_URL",
+        f"sqlite:///{os.path.join(BASE_DIR, 'healthcare.db')}"
+    )
+
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    SECRET_KEY = os.environ.get(
+        "SECRET_KEY",
+        "super-secret-key"
+    )
+
+    JWT_SECRET_KEY = os.environ.get(
+        "JWT_SECRET_KEY",
+        "jwt-secret-key"
+    )
+
+    DEBUG = os.environ.get(
+        "FLASK_DEBUG",
+        "false"
+    ).lower() == "true"
