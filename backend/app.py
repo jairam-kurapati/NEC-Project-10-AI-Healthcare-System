@@ -559,4 +559,5 @@ if __name__ == '__main__':
         from train_models import train_and_save_models
         train_and_save_models()
         
-    app.run(host='127.0.0.1', port=5000, debug=True)
+    from config import Config
+    app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)

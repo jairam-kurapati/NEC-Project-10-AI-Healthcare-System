@@ -1,16 +1,14 @@
-import os
 import sqlite3
 import json
-
-DB_FILE = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'healthcare.db'))
+from config import Config
 
 def get_db_connection():
-    conn = sqlite3.connect(DB_FILE)
+    conn = sqlite3.connect(Config.DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    db_exists = os.path.exists(DB_FILE)
+    db_exists = os.path.exists(Config.DB_PATH)
     conn = get_db_connection()
     cursor = conn.cursor()
     
