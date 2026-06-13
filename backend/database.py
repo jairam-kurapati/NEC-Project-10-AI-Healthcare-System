@@ -2,7 +2,7 @@ import os
 import sqlite3
 import json
 
-DB_FILE = os.path.join(os.path.dirname(__file__), 'healthcare.db')
+DB_FILE = os.environ.get('DB_PATH', os.path.join(os.path.dirname(__file__), 'healthcare.db'))
 
 def get_db_connection():
     conn = sqlite3.connect(DB_FILE)
