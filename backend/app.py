@@ -28,6 +28,13 @@ def parse_db_row(row, list_fields):
             d[field] = []
     return d
 
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        'status': 'online',
+        'message': 'AuraCare AI Healthcare System API is running successfully. Access features through the Vite frontend dashboard.'
+    })
+
 @app.route('/api/state', methods=['GET'])
 def get_state():
     conn = get_db_connection()
