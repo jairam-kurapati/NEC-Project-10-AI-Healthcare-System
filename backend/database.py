@@ -1,14 +1,22 @@
 import sqlite3
 import json
+import os
 from config import Config
 
+# Parse the database file path from SQLALCHEMY_DATABASE_URI
+db_uri = getattr(Config, 'SQLALCHEMY_DATABASE_URI', 'sqlite:///healthcare.db')
+if db_uri.startswith('sqlite:///'):
+    DB_PATH = db_uri.replace('sqlite:///', '', 1)
+else:
+    DB_PATH = db_uri  # Fallback or raw path
+
 def get_db_connection():
-    conn = sqlite3.connect(Config.DB_PATH)
+    conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    db_exists = os.path.exists(Config.DB_PATH)
+    db_exists = os.path.exists(DB_PATH)
     conn = get_db_connection()
     cursor = conn.cursor()
     

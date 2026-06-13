@@ -560,4 +560,7 @@ if __name__ == '__main__':
         train_and_save_models()
         
     from config import Config
-    app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG)
+    host = getattr(Config, 'HOST', '127.0.0.1')
+    port = getattr(Config, 'PORT', 5000)
+    debug = getattr(Config, 'DEBUG', True)
+    app.run(host=host, port=port, debug=debug)
