@@ -1202,6 +1202,8 @@ function saveReportPredictionStats(disease, risk) {
     const calculatedStay = Math.max(Math.round(risk / 10), 2);
     avgStayEl.innerText = `${((4.8 + calculatedStay) / 2).toFixed(1)} Days`;
   }
+}
+
 // Bed Assignment triggers
 async function handleEmergencyBedAssign(e) {
   e.preventDefault();
