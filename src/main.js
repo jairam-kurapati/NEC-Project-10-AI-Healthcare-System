@@ -22,7 +22,9 @@ const state = {
   charts: {} // Store Chart.js instances to destroy them before re-creating
 };
 
-const API_BASE_URL = 'http://127.0.0.1:5000/api';
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://127.0.0.1:5000/api'
+  : 'https://YOUR-BACKEND-SERVICE-NAME.onrender.com/api';
 let usingFallback = false;
 
 async function apiFetch(path, options = {}) {
