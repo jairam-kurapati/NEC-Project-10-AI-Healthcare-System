@@ -111,13 +111,16 @@
   <div id="app" style="width: 100%;">
     <!-- SIDEBAR -->
     <aside class="sidebar">
-      <div class="sidebar-header">
+      <div class="sidebar-header" style="display: flex; justify-content: space-between; align-items: center;">
         <div class="auth-logo" style="margin-bottom: 0; justify-content: flex-start;">
           <div class="logo-icon" style="width: 38px; height: 38px; border-radius: 8px;">
             <i data-lucide="shield-check" style="width: 20px; height: 20px;"></i>
           </div>
           <div class="logo-text" style="font-size: 20px;">AuraCare</div>
         </div>
+        <button id="btn-close-sidebar" class="btn-icon btn-close-sidebar" style="display: none;" title="Close Sidebar">
+          <i data-lucide="x"></i>
+        </button>
       </div>
       
       <nav class="sidebar-nav">
@@ -191,9 +194,14 @@
 
       <!-- Header -->
       <header class="workspace-header">
-        <div class="header-title">
-          <h1 id="view-title">Dashboard & Analytics</h1>
-          <p id="view-subtitle">Real-time indicators and hospital status overview</p>
+        <div style="display: flex; align-items: center; gap: 16px;">
+          <button id="btn-toggle-sidebar" class="btn-secondary btn-toggle-sidebar" style="display: none; padding: 8px;" title="Open Menu">
+            <i data-lucide="menu"></i>
+          </button>
+          <div class="header-title">
+            <h1 id="view-title">Dashboard & Analytics</h1>
+            <p id="view-subtitle">Real-time indicators and hospital status overview</p>
+          </div>
         </div>
         <div class="header-actions">
           <button id="btn-quick-emergency" class="btn-primary" style="background: linear-gradient(135deg, #ef4444, #b91c1c); display: flex; align-items: center; gap: 8px;">
@@ -692,7 +700,7 @@
             </button>
           </div>
 
-          <div id="ai-optimization-alert" style="display: none; margin-top: 20px; padding: 14px 20px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px;" class="badge-success">
+          <div id="ai-optimization-alert" style="display: none; margin-top: 20px; padding: 14px 20px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; color: var(--color-text-primary);">
             <span style="color: #c084fc; font-weight: 600;">AI Suggestion:</span> Predicted weekend patient peak of +28% inflow. Recommended to double ER Nurse staffing assignments for the Night Shift.
           </div>
         </div>

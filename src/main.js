@@ -419,6 +419,33 @@ function setupEventListeners() {
   document.getElementById('btn-print-report').addEventListener('click', () => {
     window.print();
   });
+
+  // Mobile sidebar navigation toggles
+  const sidebar = document.querySelector('.sidebar');
+  const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+  const btnCloseSidebar = document.getElementById('btn-close-sidebar');
+
+  if (btnToggleSidebar && sidebar) {
+    btnToggleSidebar.addEventListener('click', () => {
+      sidebar.classList.add('active');
+    });
+  }
+
+  if (btnCloseSidebar && sidebar) {
+    btnCloseSidebar.addEventListener('click', () => {
+      sidebar.classList.remove('active');
+    });
+  }
+
+  // Auto-close sidebar on menu link clicks on mobile screen
+  const sidebarLinks = document.querySelectorAll('.sidebar-nav .nav-link');
+  sidebarLinks.forEach(link => {
+    link.addEventListener('click', () => {
+      if (window.innerWidth <= 1024) {
+        sidebar.classList.remove('active');
+      }
+    });
+  });
 }
 
 // View Routing Switcher

@@ -148,6 +148,7 @@ button, input, select, textarea {
   font-weight: 700;
   background: linear-gradient(to right, #ffffff, #94a3b8);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -230,7 +231,7 @@ button, input, select, textarea {
 }
 
 .role-select {
-  padding-left: 14px !important;
+  padding-left: 42px !important;
 }
 
 .btn-primary {
@@ -407,6 +408,7 @@ button, input, select, textarea {
   font-weight: 700;
   background: linear-gradient(135deg, white 0%, #cbd5e1 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
@@ -1013,4 +1015,45 @@ button, input, select, textarea {
   0% { transform: scale(1); }
   50% { transform: scale(1.15); }
   100% { transform: scale(1); }
+}
+
+/* Responsive Layout Adjustments */
+@media (max-width: 1024px) {
+  .sidebar {
+    transform: translateX(-100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(0, 0, 0, 0.5);
+  }
+  
+  .sidebar.active {
+    transform: translateX(0);
+  }
+  
+  .btn-close-sidebar {
+    display: flex !important;
+  }
+  
+  .btn-toggle-sidebar {
+    display: flex !important;
+  }
+  
+  .main-workspace {
+    margin-left: 0;
+    padding: 24px 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 24px 16px;
+    border-radius: 16px;
+  }
+  
+  .chatbot-panel {
+    width: calc(100vw - 32px);
+    right: 16px;
+    left: 16px;
+    bottom: 80px;
+    height: 400px;
+  }
 }
